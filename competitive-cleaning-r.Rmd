@@ -1,0 +1,861 @@
+---
+title: "competitive-cleaning-r"
+author: "Jake Martin"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    depth: 4
+    number_sections: no
+    theme:  cosmo
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+knit: |
+  (function(input, ...) {
+    rmarkdown::render(
+      input,
+      output_file = paste0(
+       'index.html'
+      ),
+      envir = globalenv()
+    )
+  })
+---
+
+#########################
+# README
+#########################
+
+This R code contains the data analysis for all results reported in Brooker et al (2025) 'Competitive cleaning: behavioural variation  supports coexistence of two juvenile  sympatric cleanerfishes' (DOI: ).
+
+#########################
+# R script contact
+#########################
+
+**Jake M. Martin** <br>
+
+**Email**: jake.martin@deakin.edu.au (or jake.martin.research@gmail.com) <br>
+
+**Web**: jake.martin.org <br>
+
+**GitHub**: https://github.com/JakeMartinResearch <br>
+
+#########################
+# Knit settings 
+#########################
+
+Here we define our Knit settings, to make the output more user friendly, and to cache output for faster knitting.
+
+```{r setup}
+#kniter seetting
+knitr::opts_chunk$set(
+message = FALSE,
+warning = FALSE, # no warnings
+cache = TRUE,# Cacheing to save time when kniting
+tidy = TRUE
+)
+```
+
+#########################
+# Required packages
+#########################
+
+These are the R packages required for this script. You will need to install a package called pacman to run the p_load function.
+
+You will need the glmmTMB package. This package needs to be instead from source (really you should always install from source), as there seems to be an issue with a recent update in TMB. Use this code to install the following, install.packages("TMB", type="source"). Then install.packages("glmmTMB", type="source")). Then load glmmTMB using library("glmmTMB"). Only install if you haven't already done so. <br>
+
+```{r, message=FALSE, results='hide'}
+# this installs and load packages
+# need to install pacman
+pacman::p_load("ggplot2", 
+               "ggthemes", 
+               "ggfortify",
+               "ggridges",
+               "gghalves",
+               "ggExtra",
+               "plotly",
+               "colorspace", 
+               "ggrepel", 
+               "ggdist",
+               "gt",
+               "tinytex", # Data visualization
+               
+               "data.table",
+               "stringr",
+               "tidyverse", 
+               "janitor", 
+               "readxl", 
+               "broom", # data tidy
+               
+               "lme4",
+               "glmmTMB",
+               "car",
+               "emmeans",
+               "bbmle",
+               "magrittr",
+               "lmerTest",
+               "rptR",
+               "RNOmni",
+               "AICcmodavg",
+               "performance" # data analysis 
+                       )
+```
+
+
+#########################
+# Directories 
+#########################
+
+## input data
+
+This direct hold all the input data for the project
+
+```{r}
+wd <- getwd()
+input_data_wd <- paste0(wd, "./input-data")
+```
+
+## ouput figures
+
+This directory hold all the output figures 
+
+```{r}
+output_fig_wd <- paste0(wd, "./output-fig")
+```
+
+#########################
+# Data tidy
+#########################
+
+The chunk's below will load the data frame. You need to set your working directory to the location of the excel file, or have the the r markdown document and excel file in the same location. <br>
+
+Import the data frame <br>
+
+```{r}
+setwd(input_data_wd)
+cleaner_data <- read_excel("cleaner-fish-data.xlsx")
+```
+
+Changing some of the variable str <br>
+
+```{r}
+cleaner_data <- cleaner_data %>% 
+  mutate(trial_id = as.factor(trial_id),
+         treatment = as.factor(treatment),
+         comp = as.factor(comp),
+         species = as.factor(species))
+```
+
+Next, we are looking at how many trials there were. The code below will tells us how many trials we have <br>
+
+```{r}
+n <- length(unique(cleaner_data$trial_id))
+paste0("There are ", n, " trials")
+```
+
+Now I will use this to figure out how many of each combination we had <br>
+
+```{r}
+sample_size <- cleaner_data %>%
+  dplyr::group_by(species, comp) %>%
+  dplyr::reframe('n' = length((trial_id))) %>% 
+  dplyr::rename('Focal species' = species, Competitor = comp)
+
+
+sample_size %>% 
+  gt()
+```
+
+## Making an association score
+
+Let's make some new variables. <br>
+
+First, lets make a variable the represents the realised total time spent in the back 3rd of the tank. At the moment we have time spent in the back 3rd of the tank (i.e. back_s), but this is not inclusive of time spent in the refuge/pipe (i.e. pipe_s). However, the pipe is also in the back half of the tank, so really we want to add these two times together. We called this new variable back_s_tt. Let's also do the same for time in the front 3rd. We will also make a new variable that captures the number of transition across zones. <br>
+
+We will also make a weighted association score. A association score can be calculated by summing the weighted proportion of time the focal fish spent within the three sociability zones (i.e., [proportion of time in the “social” zone x 1] + [proportion of time in the “neutral” zone x 0] + [proportion of time in the “asocial” zone x -1]). This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1). <br>
+
+```{r}
+cleaner_data <- cleaner_data %>%
+   mutate(back_s_tt = back_s + pipe_s,
+          front_s_tt = front_s + interaction_s,
+          total_time = front_s_tt + middle_s + back_s_tt,
+          front_tt_prop = (front_s_tt/total_time),
+          middle_tt_prop = (middle_s/total_time),
+          back_tt_prop = (back_s_tt/total_time),
+          ass_score = (front_tt_prop*1) + (middle_tt_prop*0) + (back_tt_prop*-1),
+          zone_n = front_n + middle_n + back_n)
+```
+
+Let's check that the time in each 3rd adds up to total trial time. There is slight variation, but is all very close to 300 <br>
+
+```{r}
+summary(cleaner_data$total_time)
+```
+
+## Treatment variable
+
+Making a new treatment variable that captures which species the focal fish is, as well as the competitor <br>
+
+```{r}
+cleaner_data <- cleaner_data %>%
+   mutate(treatment_pw = as.factor(paste0(species, "_", comp)),
+          treatment_pw_clean = str_replace(treatment_pw, "_", " (vs "),
+          treatment_pw_clean = paste0(treatment_pw_clean, ")")
+          )
+```
+
+#######################
+# Visualising data
+#######################
+
+## Total time interacting
+
+First we are going to plot the data and see what it looks like <br>
+
+```{r}
+diag_plot_1 <- cleaner_data %>%
+  dplyr::mutate(treatment_pw = str_replace(treatment_pw, "_", " (vs "),
+                treatment_pw = paste0(treatment_pw, ")")) %>% 
+  ggplot(aes(x = treatment_pw, y = interaction_s, color = species)) 
+
+dodge <- position_dodge(width = 0.5)
+
+diag_plot_1 + 
+  geom_boxplot(width = 0.3, position = dodge) +
+  geom_jitter(position = dodge, alpha = 0.7) +
+  labs(x = "Focal species (vs competitor)", 
+       y = "Time the focal indvudal interacted with the client fish (sec)",
+       color = "Focal species") +
+   theme_few() +
+   theme(
+    legend.position = "top",
+    axis.title.y =  element_text(size=11),
+    axis.title.x =  element_text(size=11),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(color="black", size=10))
+```
+
+Using a histogram to check the disruption of the raw data <br>
+
+```{r}
+ggplot(cleaner_data, aes(interaction_s)) +
+  geom_histogram() + 
+  theme_classic()
+```
+
+There's lots of zeros, let's see how many there are in each species <br>
+
+```{r}
+number_zero <- cleaner_data %>%
+  dplyr::filter(interaction_s == 0) %>%
+   dplyr::group_by(species) %>%
+   dplyr::summarise(n_zero = length((trial_id)))
+number_zero <- number_zero %>% 
+  mutate(n_above_zero = 20-n_zero,
+         prop_zero = n_zero/(n_above_zero+n_zero))
+number_zero %>% 
+  gt()
+```
+Number of zeros per competitive pair <br>
+
+```{r}
+number_zero_tretament <- cleaner_data %>%
+  dplyr::filter(interaction_s == 0) %>%
+  dplyr::group_by(treatment_pw) %>%
+  dplyr::reframe(n_zero = length((trial_id))) %>% 
+  dplyr::rename(Treatment = treatment_pw)
+
+number_zero_tretament %>% 
+  gt()
+```
+
+35% of the overall values are zeros <br> 
+
+```{r}
+total_prop_zeros = sum(number_zero$n_zero)/(sum(number_zero$n_zero) + sum(number_zero$n_above_zero))
+
+paste0(total_prop_zeros*100, "% of the data are zeros")
+```
+
+Because there are so many zero, we may consider testing the count data instead, and using a glmer model that handles zero inflated distributions (e.g. a zero-inflated Poisson or negative binomial) <br>
+
+## Number of times interacting with clinet
+
+Now we will look at the number of times interacting with the client <br>
+
+```{r}
+diag_plot_2 <- cleaner_data %>%
+  dplyr::mutate(treatment_pw = str_replace(treatment_pw, "_", " (vs "),
+                treatment_pw = paste0(treatment_pw, ")")) %>% 
+  ggplot(aes(x = treatment_pw, y = interaction_n, colour = species)) 
+
+dodge <- position_dodge(width = 0.5)
+
+diag_plot_2 + 
+  geom_boxplot(width = 0.3, position = dodge) +
+  geom_jitter(position = dodge, alpha = 0.7) +
+  labs(x = "Focal species (vs competitor)", 
+       y = "Number of times focal individual interacted with the client fish",
+       color = "Focal species") +
+   theme_few() +
+   theme(
+    legend.position = "top",
+    axis.title.y =  element_text(size=11),
+    axis.title.x =  element_text(size=11),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(color="black", size=10))
+```
+
+Check with a histogram <br>
+
+```{r}
+ggplot(cleaner_data, aes(interaction_n)) +
+ geom_histogram() +
+  theme_classic()
+```
+
+
+## Association score with client
+
+This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1) <br>
+
+```{r}
+diag_plot_3 <- cleaner_data %>%
+  ggplot(aes(x = treatment_pw_clean, y = ass_score, colour = species)) 
+
+dodge <- position_dodge(width = 0.5)
+
+diag_plot_3 + 
+  geom_boxplot(width = 0.3, position = dodge) +
+  geom_jitter(position = dodge, alpha = 0.7) +
+   labs(x = "Focal species (vs competitor)", 
+        y = "Association score with client",
+        color = "Focal species") +
+   theme_few() +
+   theme(
+    legend.position = "top",
+    axis.title.y =  element_text(size=11),
+    axis.title.x =  element_text(size=11),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(color="black", size=10))
+```
+
+
+Check the distribution of the data <br>
+
+```{r}
+ggplot(cleaner_data, aes(ass_score)) +
+  geom_histogram() +
+  theme_classic()
+```
+
+Checking to see if the number of interactions is correlated with assocaition score <br> 
+
+As expected there is a significant positive correlation, fish that interact more have a higher association score (S = 9573.3, p-value < 0.001, rho = 0.734). This of makes sense, they must be close to the client to interact. It actually seems like the relationship changes depending on the species and competition context. We can explore this more with the model below. <br>
+
+```{r}
+cor_test_result <- cor.test(cleaner_data$ass_score, cleaner_data$interaction_n,
+         method = "spearman",
+         conf.level = 0.95)
+
+cor_test_result
+```
+
+Building a simple linear regression <br>
+
+```{r}
+cor_lm_result <- lm(ass_score ~ interaction_n, data = cleaner_data)
+```
+
+Checking model <br>
+
+```{r}
+check_model(cor_lm_result)
+```
+
+Check correlation 
+
+```{r}
+lm_summary <- broom::tidy(cor_lm_result) %>%
+  dplyr::mutate(r_squared = summary(cor_lm_result)$r.squared,
+                across(where(is.numeric), ~ round(., 3))) %>% 
+  janitor::clean_names() %>% 
+  dplyr::filter(term == "interaction_n") %>% 
+  dplyr::rename(behaviour = term) %>% 
+  dplyr::mutate(behaviour = "Number of interactions with client")
+
+lm_summary %>% 
+  gt()
+```
+
+
+Here's how it looks
+
+```{r}
+estimate <- round(lm_summary$estimate,3)
+p <- round(lm_summary$p_value,3)
+p <- if_else(p < 0.001, "< 0.001", as.character (p))
+r <- lm_summary$r_squared
+
+annotation_text <- paste("Estimate = ", estimate, "\n", "R2 = ", r, "\n", "p ", p)
+
+diag_plot_5 <- cleaner_data %>%
+  ggplot(aes(x = ass_score, y = interaction_n, colour = treatment_pw_clean, fill = treatment_pw_clean)) +
+  geom_point(shape = 21, alpha = 0.8) +
+  stat_smooth(method=lm, alpha = 0.1) +
+  annotate("text", x = -1, y = max(cleaner_data$interaction_n) * 0.9, 
+           label = annotation_text, hjust = 0, size = 4, colour = "black") +
+  theme_clean()
+  
+diag_plot_5
+```
+
+
+#######################
+# Data anyalsis 
+#######################
+
+## Number of interactions
+
+### Moddelling
+
+Here we are modelling the data with a generalised linear mixed effect model <br>
+
+```{r, message=FALSE}
+mod_glmer <- glmer(interaction_n ~
+                 treatment_pw
+               + (1|trial_id)
+               , data = cleaner_data
+               , family = poisson(link="log"))
+summary(mod_glmer)
+```
+
+The model is overdispered <br>
+
+```{r}
+check_overdispersion(mod_glmer)
+```
+
+We will use zero inflated and negative binomial models to see if we can improve the fit. "The error "'giveCsparse' has been deprecated" is harmless and can be ignored" (Ben Bolker, 11/04/2021) <br>
+
+```{r, message=FALSE}
+mod_zip <- glmmTMB(interaction_n ~
+                 treatment_pw
+               + (1|trial_id)
+               , data = cleaner_data
+               , ziformula = ~ 1
+               , family = poisson(link="log"))
+```
+
+Fitting a negative binomial type I <br>
+
+```{r, message=FALSE}
+mod_zinbinom_1 <- update(mod_zip, family = nbinom1)
+```
+
+Fitting a negative binomial type II <br>
+
+```{r, message=FALSE}
+mod_zinbinom_2 <- update(mod_zip,family = nbinom2)
+```
+
+Fitting a Hurdle model. In contrast to zero-inflated models, hurdle models treat zero-count and nonzero outcomes as two completely separate categories, rather than treating the zero-count outcomes as a mixture of structural and sampling zeros <br>
+
+```{r, message=FALSE}
+mod_hnbinom_1 <- update(mod_zip,
+ziformula = ~.,
+data = cleaner_data,
+family = list(family = "truncated_nbinom1",link = "log"))
+```
+
+We are now going to find out which model fits best <br>
+
+If c.hat > 1, aictab will return the quasi-likelihood analogue of the information criteria requested and multiply the variance-covariance matrix of the estimates by this value (i.e., SE's are multiplied by sqrt(c.hat)). This option is not supported for generalized linear mixed models of the mer or merMod classes. In this case the NB models seem most suitable <br>
+
+```{r}
+aictab(list(mod_zip, mod_zinbinom_1, mod_zinbinom_2, mod_hnbinom_1),
+modnames = c("ZIP","NB1","NB2","HNB"),
+second.ord = TRUE, nobs = NULL, sort = TRUE, c.hat = 2)
+```
+
+Here we are using AICs, as a comparison. In this NB1 is the most suitble <br>
+
+```{r}
+aictab(list(mod_zip, mod_zinbinom_1, mod_zinbinom_2, mod_hnbinom_1),
+modnames=c("ZIP","NB1","NB2","HNB"),
+second.ord = TRUE, nobs = NULL, sort = TRUE, c.hat = 1)
+```
+
+Visually checking model performance. Based on these visual checks the zip model seems to best approximate the residual variance much better than the other two model. <br>
+
+```{r}
+check_model(mod_zinbinom_1)
+check_model(mod_zinbinom_2)
+check_model(mod_zip)
+```
+
+Based on the visual checks we should use the Zero-inflated Poisson Generalized Linear Mixed Effect Model <br>
+
+```{r}
+summary(mod_zip)
+```
+
+
+### Results
+
+Checking omnibus results <br>
+
+Using a type II Wald chisquare test, there is an overall effect of treatment on the number of interactions with the client. I am actually not sure it makes sense to report this omnibus effect, because we are not actually interested in some of the treatment comparisons, which may be driving this effects. More important is the planned comparisons we will do below.  <br> 
+
+```{r}
+signif(Anova(mod_zip, type = "II"), digits = 2)
+```
+
+
+Here we are using a Dunn-Sidak adjustment to look at our planed comparisons, in other words we are only looking at a subset of the possible comparisons. These are Bicolor_Coris to Bluestreak_Coris, Bicolor_Bluestreak to Bluestreak_Bicolor, Bicolor_Bluestreak to Bicolor_Coris, and Bluestreak_Bicolor to Bluestreak_Coris <br>
+
+Dunn-Sidak is a method of correcting either the alpha value or the p-value of a series of hypotheses to control the familywise error rate. It can be used for any collection of (independent) hypotheses. That is, not just to compare multiple means. <br>
+
+Here we are pulling out specific group means of interest from the emmeans() output. We pull out a group mean by making a vector to represent the specific mean of interest. In this vector we assign a 1 to the mean of the group of interest and a 0 to the other groups <br>
+
+The output of emmeans looks like this...<br>
+
+treatment_pw       response    SE df lower.CL upper.CL
+
+Bicolor_Bluestreak     8.26 2.526 51    4.474    15.27
+
+Bicolor_Coris         10.82 2.850 51    6.376    18.36
+
+Bluestreak_Bicolor    18.96 3.287 51   13.391    26.85
+
+Bluestreak_Coris      12.99 2.533 51    8.786    19.22
+
+Coris_Bicolor          1.19 0.729 51    0.349     4.07
+
+Coris_Bluestreak       1.54 0.957 51    0.445     5.3 
+ 
+<br>
+ 
+We want to pull out Bicolor_Bluestreak, Bicolor_Coris, Bluestreak_Bicolor, and Bluestreak_Coris. To do this we make the following vectors. <br>
+
+Bicolor_Bluestreak = c(1, 0, 0, 0, 0, 0)
+
+Bicolor_Coris = c(0, 1, 0, 0, 0, 0)
+
+Bluestreak_Bicolor = c(0, 0, 1, 0, 0, 0)
+
+Bluestreak_Coris = c(0, 0, 0, 1, 0, 0) <br>
+
+If we also wanted Coris_Bicolor and Coris_Bluestreak, we could do the following. <br>
+
+Coris_Bicolor = c(0, 0, 0, 0, 1, 0)
+
+Coris_Bluestreak = c(0, 0, 0, 0, 0, 1) <br>
+
+```{r}
+emm1 = emmeans(mod_zip, specs = ~ treatment_pw, type = "response")
+Bicolor_Bluestreak = c(1, 0, 0, 0, 0, 0)
+Bicolor_Coris = c(0, 1, 0, 0, 0, 0)
+Bluestreak_Bicolor = c(0, 0, 1, 0, 0, 0)
+Bluestreak_Coris = c(0, 0, 0, 1, 0, 0)
+emm1_planed <- contrast(emm1, method = list("Bicolor_Coris / Bluestreak_Coris" = Bicolor_Coris - Bluestreak_Coris,
+                             "Bicolor_Bluestreak / Bluestreak_Bicolor" = Bicolor_Bluestreak - Bluestreak_Bicolor,
+                             "Bicolor_Bluestreak / Bicolor_Coris" = Bicolor_Bluestreak - Bicolor_Coris,
+                             "Bluestreak_Bicolor / Bluestreak_Coris" = Bluestreak_Bicolor - Bluestreak_Coris),
+                        adjust = "tukey") %>%
+  summary(infer = TRUE)
+emm1_planed
+```
+
+Making a neat results table <br>
+
+```{r}
+emm1_planed %>% 
+  dplyr::as_tibble() %>% 
+  dplyr::rename(Contrasts = contrast,
+               'Estimate mean ratio' = ratio,
+                'P-vaule' = p.value) %>% 
+  dplyr::mutate(across(where(is.numeric), ~ round(., 3))) %>% 
+  dplyr::mutate('Estimate asymptotic CI' = paste0(asymp.LCL, "–", asymp.UCL),
+                Contrasts = case_when(
+                  Contrasts == 'Bicolor_Coris / Bluestreak_Coris' ~ 'Bicolor no competition / Bluestreak no competition',
+                  Contrasts == 'Bicolor_Bluestreak / Bluestreak_Bicolor' ~ 'Bicolor with competition / Bluestreak with competition',
+                  Contrasts == 'Bicolor_Bluestreak / Bicolor_Coris' ~ 'Bicolor with competition / Bicolor no competition',
+                  Contrasts == 'Bluestreak_Bicolor / Bluestreak_Coris' ~ 'Bluestreak with competition / Bluestreak no competition'
+                )) %>% 
+  dplyr::select(Contrasts, 'Estimate mean ratio', 'Estimate asymptotic CI', 'P-vaule') %>% 
+  gt() %>% 
+  cols_align(
+    align = "center", 
+    columns = everything()
+  )
+```
+
+If you are interested, this is a list of every comparison (unadjusted) <br>
+
+```{r}
+emm_pairs <- emmeans::emmeans(mod_zip, ~treatment_pw)
+pairs(emm_pairs, adjust="none")
+```
+
+Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot <br>
+
+```{r}
+remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
+
+est_means <- emm1 %>% 
+  tibble::as_tibble() %>% 
+  janitor::clean_names() %>% 
+  dplyr::filter(!(treatment_pw %in% remove_est)) %>% 
+  dplyr::mutate(treatment_pw = factor(treatment_pw, c("Bicolor_Coris", "Bicolor_Bluestreak", "Bluestreak_Coris", 
+                                 "Bluestreak_Bicolor","Coris_Bicolor", "Coris_Bluestreak")),
+                focal_treatment = case_when(
+                  treatment_pw == "Bicolor_Bluestreak" ~ "Bicolor with competition",
+                  treatment_pw == "Bicolor_Coris" ~ "Bicolor no competition",
+                  treatment_pw == "Bluestreak_Bicolor" ~ "Bluestreak with competition",
+                  treatment_pw == "Bluestreak_Coris" ~ "Bluestreak no competition"),
+          species = if_else(str_starts(focal_treatment, "Bicolor"), "Bicolor", "Bluestreak")
+                ) %>% 
+  dplyr::rename(estimate =  rate)
+```
+
+Calculating R <br>
+
+I am using rpt, with a poisson overdispersion model, link = sqrt. I did not now how to calculate R using a zero-inflated negative binomial model, this seemed like the best alternative. R is not really the focus of this study, I was just curious to see how much variation it explained in our data. This code and take awhile to run so I have hashed it <br>
+
+```{r, results="hide", include=FALSE}
+trial_id_rpt <- rpt(interaction_n ~
+                      treatment_pw
+                    + (1|trial_id),
+                    grname = "trial_id",
+                    data = cleaner_data,
+                    datatype = "Poisson",
+                    link = "sqrt",
+                    nboot = 1000,
+                    npermut = 1000)
+```
+
+Here's the output. Although, again, this was not the focus of the study, and probably could be estimates in a more robust way that better fits out data. Link-scale approximation: R  = 0.11, SE = 0.14, CI = [0, 0.461], P  = 0.279 [LRT] or 0.376 [Permutation] <br>
+
+```{r}
+trial_id_rpt
+```
+
+### Plot
+
+**Figure 1:** Violin and point plots showing the number of times the different cleaners interacted with the client fish under the different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05).<br>
+
+```{r}
+remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
+order_treatment <- c("Bicolor with competition", "Bicolor no competition", "Bluestreak with competition", "Bluestreak no competition")
+
+colors <- c("Bicolor" = "#5D6532", "Bluestreak" = "#071630")
+
+cleaner_data_p <- cleaner_data %>% 
+  dplyr::filter(!(treatment_pw %in% remove_est)) %>% 
+  dplyr::mutate(
+          focal_treatment = case_when(
+            treatment_pw == "Bicolor_Bluestreak" ~ "Bicolor with competition",
+            treatment_pw == "Bicolor_Coris" ~ "Bicolor no competition",
+            treatment_pw == "Bluestreak_Bicolor" ~ "Bluestreak with competition",
+            treatment_pw == "Bluestreak_Coris" ~ "Bluestreak no competition"
+            ),
+          focal_treatment = factor(focal_treatment, order_treatment)
+          )
+
+means_by_treatment <- cleaner_data_p %>%
+  dplyr::group_by(focal_treatment) %>%
+  dplyr::reframe(mean_interaction_s = mean(interaction_n, na.rm = TRUE), .groups = "drop") %>% 
+  dplyr::mutate(species = if_else(str_starts(focal_treatment, "Bicolor"), "Bicolor", "Bluestreak"),
+                focal_treatment = factor(focal_treatment, order_treatment))
+  
+#dodge <- position_dodge(width = 0.1)
+
+fig_1 <-ggplot() +
+  geom_violin(data = cleaner_data_p, aes(x = focal_treatment, y = interaction_n, fill = species, color = species), alpha = 0.1, position = dodge, width = 0.5) +
+  geom_errorbar(data = est_means, aes(x =focal_treatment, ymin = asymp_lcl, ymax = asymp_ucl, color = species), width = 0.05, linewidth = 0.8, position = dodge, alpha = 0.4) +
+      geom_point(data = est_means, aes(x = focal_treatment, y = estimate, color = species), size = 4, shape = 15, position = dodge, alpha = 0.4) +
+  geom_jitter(data = cleaner_data_p, aes(x = focal_treatment, y = interaction_n, color = species), width = 0.10, alpha = 0.8) +
+  geom_point(data = means_by_treatment, aes(x = focal_treatment, y = mean_interaction_s, color = species), size = 4, position = dodge, alpha = 0.8) +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  labs(x = "Cleaner and competition scenario", 
+       y = "Number of times interacting with client fish",
+       color = NULL,
+       fill = "Focal species") +
+  guides(color = "none") +
+   theme_few() +
+   theme(
+    legend.position = "top",
+    axis.title.y =  element_text(size=11),
+    axis.title.x =  element_text(size=11),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(color="black", size=10))
+
+fig_1
+```
+
+
+Saving the figure <br>
+
+```{r}
+setwd(output_fig_wd)
+ggsave(filename = "fig_1.pdf", fig_1, width = 5, height = 5)
+```
+
+
+## Association score with client
+
+### Modelling 
+
+Building a linear mixed effect model <br>
+
+```{r, message=FALSE}
+mod_lmer <- lmer(ass_score ~
+                 treatment_pw
+               + (1|trial_id)
+               , data = cleaner_data)
+summary(mod_lmer)
+```
+
+Visually check model suitability. It looks pretty good. <br>
+
+```{r}
+check_model(mod_lmer)
+```
+
+
+The random effects appear to explain a good about of variation, as the conditional R2 is quite high compared to the marginal R2 <br>
+
+```{r}
+model_performance(mod_lmer)
+```
+
+
+### Results
+
+Checking results of the model using Type II Wald F tests with Kenward-Roger df <br>
+
+```{r}
+signif(Anova(mod_lmer, type = "II", test = "F"), digits = 3)
+```
+
+Lets check our planned comparison 
+
+```{r}
+emm2 = emmeans(mod_lmer, specs = ~ treatment_pw, type = "response")
+Bicolor_Bluestreak = c(1, 0, 0, 0, 0, 0)
+Bicolor_Coris = c(0, 1, 0, 0, 0, 0)
+Bluestreak_Bicolor = c(0, 0, 1, 0, 0, 0)
+Bluestreak_Coris = c(0, 0, 0, 1, 0, 0)
+emm2_planed <- contrast(emm2, method = list("Bicolor_Coris / Bluestreak_Coris" = Bicolor_Coris - Bluestreak_Coris,
+                             "Bicolor_Bluestreak / Bluestreak_Bicolor" = Bicolor_Bluestreak - Bluestreak_Bicolor,
+                             "Bicolor_Bluestreak / Bicolor_Coris" = Bicolor_Bluestreak - Bicolor_Coris,
+                             "Bluestreak_Bicolor / Bluestreak_Coris" = Bluestreak_Bicolor - Bluestreak_Coris),
+                        adjust = "tukey") %>%
+  summary(infer = TRUE)
+emm2_planed
+```
+
+```{r}
+emm2_pairs <- emmeans::emmeans(mod_lmer, ~treatment_pw)
+pairs(emm2_pairs, adjust="none")
+```
+
+Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot <br>
+
+```{r}
+remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
+
+est_means_2 <- emm2 %>% 
+  tibble::as_tibble() %>% 
+  janitor::clean_names() %>% 
+  dplyr::filter(!(treatment_pw %in% remove_est)) %>% 
+  dplyr::mutate(treatment_pw = factor(treatment_pw, c("Bicolor_Coris", "Bicolor_Bluestreak", "Bluestreak_Coris", 
+                                 "Bluestreak_Bicolor","Coris_Bicolor", "Coris_Bluestreak")),
+                focal_treatment = case_when(
+                  treatment_pw == "Bicolor_Bluestreak" ~ "Bicolor with competition",
+                  treatment_pw == "Bicolor_Coris" ~ "Bicolor no competition",
+                  treatment_pw == "Bluestreak_Bicolor" ~ "Bluestreak with competition",
+                  treatment_pw == "Bluestreak_Coris" ~ "Bluestreak no competition"),
+          species = if_else(str_starts(focal_treatment, "Bicolor"), "Bicolor", "Bluestreak")
+                ) %>% 
+  dplyr::rename(estimate =  emmean)
+```
+
+Calculating R <br>
+
+I am using rpt, with a Gaussian distribution <br>
+
+```{r, results="hide", include=FALSE}
+ass_score_trial_id_rpt <- rpt(ass_score ~
+                      treatment_pw
+                    + (1|trial_id),
+                    grname = "trial_id",
+                    data = cleaner_data,
+                    datatype = "Gaussian",
+                    nboot=1000,
+                    npermut= 0)
+```
+
+Repeatability for trial_id, R  = 0.333, SE = 0.161, CI = [0.028, 0.664] P  = 0.03 [LRT] or 0.087 [Permutation] <br>
+
+```{r}
+ass_score_trial_id_rpt
+```
+
+### Plot
+
+**Figure 2:** Violin and point plots showing the association score the different cleaners has with the client fish under different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05). <br>
+
+```{r}
+remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
+order_treatment <- c("Bicolor with competition", "Bicolor no competition", "Bluestreak with competition", "Bluestreak no competition")
+
+colors <- c("Bicolor" = "#5D6532", "Bluestreak" = "#071630")
+
+
+ass_means_by_treatment <- cleaner_data_p %>%
+  dplyr::group_by(focal_treatment) %>%
+  dplyr::reframe(mean_ass_score = mean(ass_score, na.rm = TRUE), .groups = "drop") %>% 
+  dplyr::mutate(species = if_else(str_starts(focal_treatment, "Bicolor"), "Bicolor", "Bluestreak"),
+                focal_treatment = factor(focal_treatment, order_treatment))
+  
+#dodge <- position_dodge(width = 0.1)
+
+fig_2 <-ggplot() +
+  geom_violin(data = cleaner_data_p, aes(x = focal_treatment, y = ass_score, fill = species, color = species), alpha = 0.1, position = dodge, width = 0.5) +
+  geom_errorbar(data = est_means_2, aes(x =focal_treatment, ymin = lower_cl, ymax = upper_cl, color = species), width = 0.05, linewidth = 0.8, position = dodge, alpha = 0.4) +
+      geom_point(data = est_means_2, aes(x = focal_treatment, y = estimate, color = species), size = 4, shape = 15, position = dodge, alpha = 0.4) +
+  geom_jitter(data = cleaner_data_p, aes(x = focal_treatment, y = ass_score, color = species), width = 0.10, alpha = 0.8) +
+  geom_point(data = ass_means_by_treatment, aes(x = focal_treatment, y = mean_ass_score, color = species), size = 4, position = dodge, alpha = 0.8) +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  labs(x = "Cleaner and competition scenario", 
+       y = "Assocation score with client fish (–1 to 1)",
+       color = NULL,
+       fill = "Focal species") +
+  guides(color = "none") +
+   theme_few() +
+   theme(
+    legend.position = "top",
+    axis.title.y =  element_text(size=11),
+    axis.title.x =  element_text(size=11),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(color="black", size=10))
+
+fig_2
+```
+
+
+Saving the figure
+
+```{r}
+setwd(output_fig_wd)
+ggsave(filename = "fig_2.pdf", fig_2, width = 5, height = 5)
+```
+
