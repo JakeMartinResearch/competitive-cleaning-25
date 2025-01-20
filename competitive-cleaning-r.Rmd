@@ -30,7 +30,7 @@ knit: |
 # README
 #########################
 
-This R code contains the data analysis for all results reported in Brooker et al (2025) 'Competitive cleaning: behavioural variation  supports coexistence of two juvenile  sympatric cleanerfishes' (DOI: ).
+This R script contains the data tidy and analysis for all results reported in Brooker et al (2025) 'Competitive cleaning: behavioural variation  supports coexistence of two juvenile  sympatric cleanerfishes' (DOI: *to add*).
 
 #########################
 # R script contact
