@@ -26,29 +26,45 @@ knit: |
   })
 ---
 
-#########################
-# README
-#########################
+<!------------------------------->
+# 📕 READ ME 
+<!------------------------------->
 
-This R script contains the data tidy and analysis for all results reported in Brooker et al (2025) 'Competitive cleaning: behavioural variation  supports coexistence of two juvenile  sympatric cleanerfishes' (DOI: *to add*).
+This R script contains the data tidy and analysis for all results reported in Brooker et al (2025) 'Competitive cleaning: behavioural variation  supports coexistence of two juvenile  sympatric cleanerfishes' (DOI: 🚧 **to add** 🚧).   
 
-#########################
-# R script contact
-#########################
+<!------------------------------->
+# 📧 Contact
+<!------------------------------->
 
-**Jake M. Martin** <br>
+**Jake M. Martin**
+  
+📧 **Email:** [jake.martin@deakin.edu.au](mailto:jake.martin@deakin.edu.au)  
+  
+📧 **Alt Email:** [jake.martin.research@gmail.com](mailto:jake.martin.research@gmail.com) 
+  
+🌐 **Web:** [jakemartin.org](https://jakemartin.org/)  
+  
+🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)  
 
-**Email**: jake.martin@deakin.edu.au (or jake.martin.research@gmail.com) <br>
 
-**Web**: jake.martin.org <br>
+<!------------------------------->
+# 📑 Sharing/accessing and citing
+<!------------------------------->
 
-**GitHub**: https://github.com/JakeMartinResearch <br>
+1. **Licenses/restrictions placed on the data:** CC-BY 4.0  
 
-#########################
-# Knit settings 
-#########################
+2. **Links to publications that cite or use the data:**     
+🚧 ***To be added*** 🚧     
 
-Here we define our Knit settings, to make the output more user friendly, and to cache output for faster knitting.
+3. **Recommended citation for this dataset:**      
+🚧 ***To be added*** 🚧     
+
+
+<!------------------------------->
+# ⚙️ Knit settings 
+<!------------------------------->
+
+Here we define our Knit settings, to make the output more user friendly, and to cache output for faster knitting.   
 
 ```{r setup}
 #kniter seetting
@@ -60,9 +76,9 @@ tidy = TRUE
 )
 ```
 
-#########################
-# Required packages
-#########################
+<!------------------------------->
+# 📦 Required packages
+<!------------------------------->
 
 These are the R packages required for this script. You will need to install a package called pacman to run the p_load function.
 
@@ -106,11 +122,11 @@ pacman::p_load("ggplot2",
 ```
 
 
-#########################
-# Directories 
-#########################
+<!------------------------------->
+# 📂 Directories 
+<!------------------------------->
 
-## input data
+## input data 📥
 
 This direct hold all the input data for the project
 
@@ -119,7 +135,7 @@ wd <- getwd()
 input_data_wd <- paste0(wd, "./input-data")
 ```
 
-## ouput figures
+## ouput figures 📥 
 
 This directory hold all the output figures 
 
@@ -127,20 +143,26 @@ This directory hold all the output figures
 output_fig_wd <- paste0(wd, "./output-fig")
 ```
 
-#########################
-# Data tidy
-#########################
+<!------------------------------->
+# 💿 Data 
+<!------------------------------->
 
-The chunk's below will load the data frame. You need to set your working directory to the location of the excel file, or have the the r markdown document and excel file in the same location. <br>
+**💿 cleaner_data**: this is the behavioural data collected from cleaning trials described in the manuscript.  
 
-Import the data frame <br>
+The data is explained throughout the data tidy, visualisation and analysis sections of this code.   
+
+The chunk's below will load the data frame. You need to set your working directory to the location of the excel file, or have the the r markdown document and excel file in the same location.       
 
 ```{r}
 setwd(input_data_wd)
 cleaner_data <- read_excel("cleaner-fish-data.xlsx")
 ```
 
-Changing some of the variable str <br>
+<!------------------------------->
+# 🧼 Data tidy
+<!------------------------------->
+
+Changing some of the variable structures.       
 
 ```{r}
 cleaner_data <- cleaner_data %>% 
@@ -150,14 +172,14 @@ cleaner_data <- cleaner_data %>%
          species = as.factor(species))
 ```
 
-Next, we are looking at how many trials there were. The code below will tells us how many trials we have <br>
+Next, we are looking at how many trials there were. The code below will tells us how many trials we have.    
 
 ```{r}
 n <- length(unique(cleaner_data$trial_id))
 paste0("There are ", n, " trials")
 ```
 
-Now I will use this to figure out how many of each combination we had <br>
+Now I will use this to figure out how many of each combination we had     
 
 ```{r}
 sample_size <- cleaner_data %>%
@@ -170,13 +192,11 @@ sample_size %>%
   gt()
 ```
 
-## Making an association score
+## Making an association score  
 
-Let's make some new variables. <br>
+First, lets make a variable the represents the realised total time spent in the back 3rd of the tank. At the moment we have time spent in the back 3rd of the tank (i.e. back_s), but this is not inclusive of time spent in the refuge/pipe (i.e. pipe_s). However, the pipe is also in the back half of the tank, so really we want to add these two times together. We called this new variable back_s_tt. Let's also do the same for time in the front 3rd. We will also make a new variable that captures the number of transition across zones.    
 
-First, lets make a variable the represents the realised total time spent in the back 3rd of the tank. At the moment we have time spent in the back 3rd of the tank (i.e. back_s), but this is not inclusive of time spent in the refuge/pipe (i.e. pipe_s). However, the pipe is also in the back half of the tank, so really we want to add these two times together. We called this new variable back_s_tt. Let's also do the same for time in the front 3rd. We will also make a new variable that captures the number of transition across zones. <br>
-
-We will also make a weighted association score. A association score can be calculated by summing the weighted proportion of time the focal fish spent within the three sociability zones (i.e., [proportion of time in the “social” zone x 1] + [proportion of time in the “neutral” zone x 0] + [proportion of time in the “asocial” zone x -1]). This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1). <br>
+We will also make a weighted association score. A association score can be calculated by summing the weighted proportion of time the focal fish spent within the three sociability zones (i.e., [proportion of time in the “social” zone x 1] + [proportion of time in the “neutral” zone x 0] + [proportion of time in the “asocial” zone x -1]). This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1).     
 
 ```{r}
 cleaner_data <- cleaner_data %>%
@@ -198,7 +218,7 @@ summary(cleaner_data$total_time)
 
 ## Treatment variable
 
-Making a new treatment variable that captures which species the focal fish is, as well as the competitor <br>
+Making a new treatment variable that captures which species the focal fish is, as well as the competitor    
 
 ```{r}
 cleaner_data <- cleaner_data %>%
@@ -208,13 +228,13 @@ cleaner_data <- cleaner_data %>%
           )
 ```
 
-#######################
-# Visualising data
-#######################
+<!------------------------------->
+# 📊 Visualising data
+<!------------------------------->
 
 ## Total time interacting
 
-First we are going to plot the data and see what it looks like <br>
+First we are going to plot the data and see what it looks like     
 
 ```{r}
 diag_plot_1 <- cleaner_data %>%
@@ -239,7 +259,7 @@ diag_plot_1 +
     axis.text.y = element_text(color="black", size=10))
 ```
 
-Using a histogram to check the disruption of the raw data <br>
+Using a histogram to check the disruption of the raw data     
 
 ```{r}
 ggplot(cleaner_data, aes(interaction_s)) +
@@ -247,7 +267,7 @@ ggplot(cleaner_data, aes(interaction_s)) +
   theme_classic()
 ```
 
-There's lots of zeros, let's see how many there are in each species <br>
+There's lots of zeros, let's see how many there are in each species     
 
 ```{r}
 number_zero <- cleaner_data %>%
@@ -260,7 +280,7 @@ number_zero <- number_zero %>%
 number_zero %>% 
   gt()
 ```
-Number of zeros per competitive pair <br>
+Number of zeros per competitive pair     
 
 ```{r}
 number_zero_tretament <- cleaner_data %>%
@@ -273,7 +293,7 @@ number_zero_tretament %>%
   gt()
 ```
 
-35% of the overall values are zeros <br> 
+35% of the overall values are zeros     
 
 ```{r}
 total_prop_zeros = sum(number_zero$n_zero)/(sum(number_zero$n_zero) + sum(number_zero$n_above_zero))
@@ -281,11 +301,11 @@ total_prop_zeros = sum(number_zero$n_zero)/(sum(number_zero$n_zero) + sum(number
 paste0(total_prop_zeros*100, "% of the data are zeros")
 ```
 
-Because there are so many zero, we may consider testing the count data instead, and using a glmer model that handles zero inflated distributions (e.g. a zero-inflated Poisson or negative binomial) <br>
+Because there are so many zero, we may consider testing the count data instead, and using a glmer model that handles zero inflated distributions (e.g. a zero-inflated Poisson or negative binomial)     
 
 ## Number of times interacting with clinet
 
-Now we will look at the number of times interacting with the client <br>
+Now we will look at the number of times interacting with the client     
 
 ```{r}
 diag_plot_2 <- cleaner_data %>%
@@ -310,7 +330,7 @@ diag_plot_2 +
     axis.text.y = element_text(color="black", size=10))
 ```
 
-Check with a histogram <br>
+Check with a histogram     
 
 ```{r}
 ggplot(cleaner_data, aes(interaction_n)) +
@@ -321,7 +341,7 @@ ggplot(cleaner_data, aes(interaction_n)) +
 
 ## Association score with client
 
-This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1) <br>
+This score indicates the use of the entire central compartment relative to the position of the stimulus shoal, with a higher score indicating a more social individual (maximum: 1, minimum: -1)    
 
 ```{r}
 diag_plot_3 <- cleaner_data %>%
@@ -345,7 +365,7 @@ diag_plot_3 +
 ```
 
 
-Check the distribution of the data <br>
+Check the distribution of the data    
 
 ```{r}
 ggplot(cleaner_data, aes(ass_score)) +
@@ -353,9 +373,9 @@ ggplot(cleaner_data, aes(ass_score)) +
   theme_classic()
 ```
 
-Checking to see if the number of interactions is correlated with assocaition score <br> 
+Checking to see if the number of interactions is correlated with assocaition score    
 
-As expected there is a significant positive correlation, fish that interact more have a higher association score (S = 9573.3, p-value < 0.001, rho = 0.734). This of makes sense, they must be close to the client to interact. It actually seems like the relationship changes depending on the species and competition context. We can explore this more with the model below. <br>
+As expected there is a significant positive correlation, fish that interact more have a higher association score (S = 9573.3, p-value < 0.001, rho = 0.734). This of makes sense, they must be close to the client to interact. It actually seems like the relationship changes depending on the species and competition context. We can explore this more with the model below.     
 
 ```{r}
 cor_test_result <- cor.test(cleaner_data$ass_score, cleaner_data$interaction_n,
@@ -365,19 +385,19 @@ cor_test_result <- cor.test(cleaner_data$ass_score, cleaner_data$interaction_n,
 cor_test_result
 ```
 
-Building a simple linear regression <br>
+Building a simple linear regression     
 
 ```{r}
 cor_lm_result <- lm(ass_score ~ interaction_n, data = cleaner_data)
 ```
 
-Checking model <br>
+Checking model   
 
 ```{r}
 check_model(cor_lm_result)
 ```
 
-Check correlation 
+Check correlation   
 
 ```{r}
 lm_summary <- broom::tidy(cor_lm_result) %>%
@@ -393,7 +413,7 @@ lm_summary %>%
 ```
 
 
-Here's how it looks
+Here's how it looks   
 
 ```{r}
 estimate <- round(lm_summary$estimate,3)
@@ -415,15 +435,15 @@ diag_plot_5
 ```
 
 
-#######################
-# Data anyalsis 
-#######################
+<!------------------------------->
+# 🧮 Analysis 
+<!------------------------------->
 
-## Number of interactions
+## Number of interactions    
 
-### Moddelling
+### Moddelling    
 
-Here we are modelling the data with a generalised linear mixed effect model <br>
+Here we are modelling the data with a generalised linear mixed effect model     
 
 ```{r, message=FALSE}
 mod_glmer <- glmer(interaction_n ~
@@ -434,13 +454,13 @@ mod_glmer <- glmer(interaction_n ~
 summary(mod_glmer)
 ```
 
-The model is overdispered <br>
+The model is overdispered     
 
 ```{r}
 check_overdispersion(mod_glmer)
 ```
 
-We will use zero inflated and negative binomial models to see if we can improve the fit. "The error "'giveCsparse' has been deprecated" is harmless and can be ignored" (Ben Bolker, 11/04/2021) <br>
+We will use zero inflated and negative binomial models to see if we can improve the fit. "The error "'giveCsparse' has been deprecated" is harmless and can be ignored" (Ben Bolker, 11/04/2021)    
 
 ```{r, message=FALSE}
 mod_zip <- glmmTMB(interaction_n ~
@@ -451,19 +471,19 @@ mod_zip <- glmmTMB(interaction_n ~
                , family = poisson(link="log"))
 ```
 
-Fitting a negative binomial type I <br>
+Fitting a negative binomial type I     
 
 ```{r, message=FALSE}
 mod_zinbinom_1 <- update(mod_zip, family = nbinom1)
 ```
 
-Fitting a negative binomial type II <br>
+Fitting a negative binomial type II     
 
 ```{r, message=FALSE}
 mod_zinbinom_2 <- update(mod_zip,family = nbinom2)
 ```
 
-Fitting a Hurdle model. In contrast to zero-inflated models, hurdle models treat zero-count and nonzero outcomes as two completely separate categories, rather than treating the zero-count outcomes as a mixture of structural and sampling zeros <br>
+Fitting a Hurdle model. In contrast to zero-inflated models, hurdle models treat zero-count and nonzero outcomes as two completely separate categories, rather than treating the zero-count outcomes as a mixture of structural and sampling zeros      
 
 ```{r, message=FALSE}
 mod_hnbinom_1 <- update(mod_zip,
@@ -472,9 +492,9 @@ data = cleaner_data,
 family = list(family = "truncated_nbinom1",link = "log"))
 ```
 
-We are now going to find out which model fits best <br>
+We are now going to find out which model fits best     
 
-If c.hat > 1, aictab will return the quasi-likelihood analogue of the information criteria requested and multiply the variance-covariance matrix of the estimates by this value (i.e., SE's are multiplied by sqrt(c.hat)). This option is not supported for generalized linear mixed models of the mer or merMod classes. In this case the NB models seem most suitable <br>
+If c.hat > 1, aictab will return the quasi-likelihood analogue of the information criteria requested and multiply the variance-covariance matrix of the estimates by this value (i.e., SE's are multiplied by sqrt(c.hat)). This option is not supported for generalized linear mixed models of the mer or merMod classes. In this case the NB models seem most suitable     
 
 ```{r}
 aictab(list(mod_zip, mod_zinbinom_1, mod_zinbinom_2, mod_hnbinom_1),
@@ -482,7 +502,7 @@ modnames = c("ZIP","NB1","NB2","HNB"),
 second.ord = TRUE, nobs = NULL, sort = TRUE, c.hat = 2)
 ```
 
-Here we are using AICs, as a comparison. In this NB1 is the most suitble <br>
+Here we are using AICs, as a comparison. In this NB1 is the most suitble    
 
 ```{r}
 aictab(list(mod_zip, mod_zinbinom_1, mod_zinbinom_2, mod_hnbinom_1),
@@ -490,7 +510,7 @@ modnames=c("ZIP","NB1","NB2","HNB"),
 second.ord = TRUE, nobs = NULL, sort = TRUE, c.hat = 1)
 ```
 
-Visually checking model performance. Based on these visual checks the zip model seems to best approximate the residual variance much better than the other two model. <br>
+Visually checking model performance. Based on these visual checks the zip model seems to best approximate the residual variance much better than the other two model.    
 
 ```{r}
 check_model(mod_zinbinom_1)
@@ -498,63 +518,62 @@ check_model(mod_zinbinom_2)
 check_model(mod_zip)
 ```
 
-Based on the visual checks we should use the Zero-inflated Poisson Generalized Linear Mixed Effect Model <br>
+Based on the visual checks we should use the Zero-inflated Poisson Generalized Linear Mixed Effect Model     
 
 ```{r}
 summary(mod_zip)
 ```
 
+### 📈 Results
 
-### Results
+Checking omnibus results    
 
-Checking omnibus results <br>
-
-Using a type II Wald chisquare test, there is an overall effect of treatment on the number of interactions with the client. I am actually not sure it makes sense to report this omnibus effect, because we are not actually interested in some of the treatment comparisons, which may be driving this effects. More important is the planned comparisons we will do below.  <br> 
+Using a type II Wald chisquare test, there is an overall effect of treatment on the number of interactions with the client. I am actually not sure it makes sense to report this omnibus effect, because we are not actually interested in some of the treatment comparisons, which may be driving this effects. More important is the planned comparisons we will do below.     
 
 ```{r}
 signif(Anova(mod_zip, type = "II"), digits = 2)
 ```
 
 
-Here we are using a Dunn-Sidak adjustment to look at our planed comparisons, in other words we are only looking at a subset of the possible comparisons. These are Bicolor_Coris to Bluestreak_Coris, Bicolor_Bluestreak to Bluestreak_Bicolor, Bicolor_Bluestreak to Bicolor_Coris, and Bluestreak_Bicolor to Bluestreak_Coris <br>
+Here we are using a Dunn-Sidak adjustment to look at our planed comparisons, in other words we are only looking at a subset of the possible comparisons. These are Bicolor_Coris to Bluestreak_Coris, Bicolor_Bluestreak to Bluestreak_Bicolor, Bicolor_Bluestreak to Bicolor_Coris, and Bluestreak_Bicolor to Bluestreak_Coris    
 
-Dunn-Sidak is a method of correcting either the alpha value or the p-value of a series of hypotheses to control the familywise error rate. It can be used for any collection of (independent) hypotheses. That is, not just to compare multiple means. <br>
+Dunn-Sidak is a method of correcting either the alpha value or the p-value of a series of hypotheses to control the familywise error rate. It can be used for any collection of (independent) hypotheses. That is, not just to compare multiple means.   
 
-Here we are pulling out specific group means of interest from the emmeans() output. We pull out a group mean by making a vector to represent the specific mean of interest. In this vector we assign a 1 to the mean of the group of interest and a 0 to the other groups <br>
+Here we are pulling out specific group means of interest from the emmeans() output. We pull out a group mean by making a vector to represent the specific mean of interest. In this vector we assign a 1 to the mean of the group of interest and a 0 to the other groups    
 
-The output of emmeans looks like this...<br>
+The output of emmeans looks like this...    
 
-treatment_pw       response    SE df lower.CL upper.CL
+treatment_pw       response    SE df lower.CL upper.CL   
 
-Bicolor_Bluestreak     8.26 2.526 51    4.474    15.27
+Bicolor_Bluestreak     8.26 2.526 51    4.474    15.27  
 
-Bicolor_Coris         10.82 2.850 51    6.376    18.36
+Bicolor_Coris         10.82 2.850 51    6.376    18.36   
 
-Bluestreak_Bicolor    18.96 3.287 51   13.391    26.85
+Bluestreak_Bicolor    18.96 3.287 51   13.391    26.85   
 
-Bluestreak_Coris      12.99 2.533 51    8.786    19.22
+Bluestreak_Coris      12.99 2.533 51    8.786    19.22  
 
-Coris_Bicolor          1.19 0.729 51    0.349     4.07
+Coris_Bicolor          1.19 0.729 51    0.349     4.07  
 
-Coris_Bluestreak       1.54 0.957 51    0.445     5.3 
+Coris_Bluestreak       1.54 0.957 51    0.445     5.3   
  
-<br>
+   
  
-We want to pull out Bicolor_Bluestreak, Bicolor_Coris, Bluestreak_Bicolor, and Bluestreak_Coris. To do this we make the following vectors. <br>
+We want to pull out Bicolor_Bluestreak, Bicolor_Coris, Bluestreak_Bicolor, and Bluestreak_Coris. To do this we make the following vectors.   
 
-Bicolor_Bluestreak = c(1, 0, 0, 0, 0, 0)
+Bicolor_Bluestreak = c(1, 0, 0, 0, 0, 0)   
 
-Bicolor_Coris = c(0, 1, 0, 0, 0, 0)
+Bicolor_Coris = c(0, 1, 0, 0, 0, 0)   
 
-Bluestreak_Bicolor = c(0, 0, 1, 0, 0, 0)
+Bluestreak_Bicolor = c(0, 0, 1, 0, 0, 0)   
 
-Bluestreak_Coris = c(0, 0, 0, 1, 0, 0) <br>
+Bluestreak_Coris = c(0, 0, 0, 1, 0, 0)   
 
-If we also wanted Coris_Bicolor and Coris_Bluestreak, we could do the following. <br>
+If we also wanted Coris_Bicolor and Coris_Bluestreak, we could do the following.   
 
-Coris_Bicolor = c(0, 0, 0, 0, 1, 0)
+Coris_Bicolor = c(0, 0, 0, 0, 1, 0)   
 
-Coris_Bluestreak = c(0, 0, 0, 0, 0, 1) <br>
+Coris_Bluestreak = c(0, 0, 0, 0, 0, 1)   
 
 ```{r}
 emm1 = emmeans(mod_zip, specs = ~ treatment_pw, type = "response")
@@ -571,7 +590,7 @@ emm1_planed <- contrast(emm1, method = list("Bicolor_Coris / Bluestreak_Coris" =
 emm1_planed
 ```
 
-Making a neat results table <br>
+Making a neat results table   
 
 ```{r}
 emm1_planed %>% 
@@ -595,14 +614,14 @@ emm1_planed %>%
   )
 ```
 
-If you are interested, this is a list of every comparison (unadjusted) <br>
+If you are interested, this is a list of every comparison (unadjusted)   
 
 ```{r}
 emm_pairs <- emmeans::emmeans(mod_zip, ~treatment_pw)
 pairs(emm_pairs, adjust="none")
 ```
 
-Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot <br>
+Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot    
 
 ```{r}
 remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
@@ -623,9 +642,9 @@ est_means <- emm1 %>%
   dplyr::rename(estimate =  rate)
 ```
 
-Calculating R <br>
+Calculating R    
 
-I am using rpt, with a poisson overdispersion model, link = sqrt. I did not now how to calculate R using a zero-inflated negative binomial model, this seemed like the best alternative. R is not really the focus of this study, I was just curious to see how much variation it explained in our data. This code and take awhile to run so I have hashed it <br>
+I am using rpt, with a poisson overdispersion model, link = sqrt. I did not now how to calculate R using a zero-inflated negative binomial model, this seemed like the best alternative. R is not really the focus of this study, I was just curious to see how much variation it explained in our data. This code and take awhile to run so I have hashed it     
 
 ```{r, results="hide", include=FALSE}
 trial_id_rpt <- rpt(interaction_n ~
@@ -639,7 +658,7 @@ trial_id_rpt <- rpt(interaction_n ~
                     npermut = 1000)
 ```
 
-Here's the output. Although, again, this was not the focus of the study, and probably could be estimates in a more robust way that better fits out data. Link-scale approximation: R  = 0.11, SE = 0.14, CI = [0, 0.461], P  = 0.279 [LRT] or 0.376 [Permutation] <br>
+Here's the output. Although, again, this was not the focus of the study, and probably could be estimates in a more robust way that better fits out data. Link-scale approximation: R  = 0.11, SE = 0.14, CI = [0, 0.461], P  = 0.279 [LRT] or 0.376 [Permutation]    
 
 ```{r}
 trial_id_rpt
@@ -647,7 +666,7 @@ trial_id_rpt
 
 ### Plot
 
-**Figure 1:** Violin and point plots showing the number of times the different cleaners interacted with the client fish under the different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05).<br>
+**Figure 1:** Violin and point plots showing the number of times the different cleaners interacted with the client fish under the different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05).   
 
 ```{r}
 remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
@@ -712,7 +731,7 @@ ggsave(filename = "fig_1.pdf", fig_1, width = 5, height = 5)
 
 ### Modelling 
 
-Building a linear mixed effect model <br>
+Building a linear mixed effect model    
 
 ```{r, message=FALSE}
 mod_lmer <- lmer(ass_score ~
@@ -722,29 +741,29 @@ mod_lmer <- lmer(ass_score ~
 summary(mod_lmer)
 ```
 
-Visually check model suitability. It looks pretty good. <br>
+Visually check model suitability. It looks pretty good.    
 
 ```{r}
 check_model(mod_lmer)
 ```
 
 
-The random effects appear to explain a good about of variation, as the conditional R2 is quite high compared to the marginal R2 <br>
+The random effects appear to explain a good about of variation, as the conditional R2 is quite high compared to the marginal R2    
 
 ```{r}
 model_performance(mod_lmer)
 ```
 
 
-### Results
+### 📈 Results
 
-Checking results of the model using Type II Wald F tests with Kenward-Roger df <br>
+Checking results of the model using Type II Wald F tests with Kenward-Roger df   
 
 ```{r}
 signif(Anova(mod_lmer, type = "II", test = "F"), digits = 3)
 ```
 
-Lets check our planned comparison 
+Lets check our planned comparison   
 
 ```{r}
 emm2 = emmeans(mod_lmer, specs = ~ treatment_pw, type = "response")
@@ -766,7 +785,7 @@ emm2_pairs <- emmeans::emmeans(mod_lmer, ~treatment_pw)
 pairs(emm2_pairs, adjust="none")
 ```
 
-Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot <br>
+Let's also get the estimated mean per treatment and asymptotic lower and upper confidence limits to add to our plot    
 
 ```{r}
 remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
@@ -787,9 +806,9 @@ est_means_2 <- emm2 %>%
   dplyr::rename(estimate =  emmean)
 ```
 
-Calculating R <br>
+Calculating R    
 
-I am using rpt, with a Gaussian distribution <br>
+I am using rpt, with a Gaussian distribution    
 
 ```{r, results="hide", include=FALSE}
 ass_score_trial_id_rpt <- rpt(ass_score ~
@@ -810,7 +829,7 @@ ass_score_trial_id_rpt
 
 ### Plot
 
-**Figure 2:** Violin and point plots showing the association score the different cleaners has with the client fish under different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05). <br>
+**Figure 2:** Violin and point plots showing the association score the different cleaners has with the client fish under different competition scenario (*n* = 10 per scenario). The violins shows the probability density smoothed by a kernel density estimator, the small points are the observed data, the larger point is the observed mean, and the square and error bars are the estimated mean and asymptotic lower and upper confidence limits (Zero-inflated Poisson Generalized Linear Mixed Effect Model). Groups that share a capital letter are not significantly different from one another (α = 0.05).    
 
 ```{r}
 remove_est <- c("Coris_Bicolor", "Coris_Bluestreak")
@@ -852,7 +871,7 @@ fig_2
 ```
 
 
-Saving the figure
+Saving the figure   
 
 ```{r}
 setwd(output_fig_wd)
