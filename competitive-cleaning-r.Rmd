@@ -44,19 +44,19 @@ This R script contains the data tidy and analysis for all results reported in Br
   
 🌐 **Web:** [jakemartin.org](https://jakemartin.org/)  
   
-🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)  
+🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)    
 
-
+  
 <!------------------------------->
 # 📑 Sharing/accessing and citing
 <!------------------------------->
 
 1. **Licenses/restrictions placed on the data:** CC-BY 4.0  
 
-2. **Links to publications that cite or use the data:**     
+2. **Links to the associated publication:**     
 🚧 ***To be added*** 🚧     
 
-3. **Recommended citation for this dataset:**      
+3. **Recommended citation for this data:**      
 🚧 ***To be added*** 🚧     
 
 
