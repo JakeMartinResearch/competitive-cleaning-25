@@ -51,7 +51,7 @@ This R script contains the data tidy and analysis for all results reported in Br
 # 📑 Sharing/accessing and citing
 <!------------------------------->
 
-1. **Licenses/restrictions placed on the data:** CC-BY 4.0  
+1. **Licenses/restrictions placed on the data:** CC0  
 
 2. **Link to the associated publication:**     
 🚧 ***To be added*** 🚧     
