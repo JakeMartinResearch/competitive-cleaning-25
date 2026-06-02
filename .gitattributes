@@ -2,5 +2,3 @@
 *.Rmd linguist-language=R
 
 index.html linguist-generated=true
-index_files/** linguist-generated=true
-competitive-cleaning-r_cache/** linguist-generated=true
